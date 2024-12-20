@@ -23,7 +23,7 @@ min_date = data['DATE'].min()
 max_date = data['DATE'].max()
 
 # Load the logo
-logo_path = "C:\\Users\\amirb\\Desktop\\Personal\\titus\\titus\\titus_logo.jpg"
+logo_path = "titus_logo.jpg"
 logo = Image.open(logo_path)
 
 # Sidebar with logo and menu
