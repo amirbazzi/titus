@@ -26,6 +26,16 @@ max_date = data['DATE'].max()
 logo_path = "titus_logo.jpg"
 logo = Image.open(logo_path)
 
+
+# Set page configuration
+st.set_page_config(
+    page_title="Titus App",  # Title of the web tab
+    page_icon="titus_logo.jpg",  # Path to your logo file
+    layout="wide",  # Optional: Can be "centered" or "wide"
+    initial_sidebar_state="expanded"  # Optional: "expanded" or "collapsed"
+)
+
+
 # Sidebar with logo and menu
 with st.sidebar:
     st.title("Titus Logistics")
