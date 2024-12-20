@@ -7,7 +7,7 @@ from fpdf import FPDF
 import numpy as np
 
 # Load the dataset
-data = pd.read_excel("C:\\Users\\amirb\\Desktop\\Personal\\titus_dashboard\\titus_data.xlsx", sheet_name="Data")
+data = pd.read_excel("titus_data.xlsx", sheet_name="Data")
 data.columns = data.iloc[0]  # Set first row as column names
 data = data[1:]  # Drop first row
 data.reset_index(drop=True, inplace=True)
