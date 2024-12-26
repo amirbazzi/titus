@@ -430,6 +430,62 @@ if uploaded_file:
         st.plotly_chart(profit_bar_chart, use_container_width=True)
 
 
+
+        # Section Header
+        st.header("Top 20 Categories by Numeric Columns")
+
+        # Dropdown to select the categorical column
+        categorical_columns = filtered_data.select_dtypes(include=['object', 'category']).columns.tolist()
+        selected_category_column = st.selectbox(
+            "Select a Category Column",
+            options=categorical_columns,
+            index=0  # Default to the first category
+        )
+
+        # Dropdown to select the numeric column
+        numeric_columns = filtered_data.select_dtypes(include=['number']).columns.tolist()
+        selected_numeric_column = st.selectbox(
+            "Select a Numeric Column",
+            options=numeric_columns,
+            index=0  # Default to the first numeric column
+        )
+
+
+        # Group data by the selected category and sum the selected numeric column
+        top_categories = (
+            filtered_data.groupby(selected_category_column)[selected_numeric_column]
+            .sum()
+            .reset_index()
+            .sort_values(by=selected_numeric_column, ascending=False)
+            .head(20)  # Keep the top 20 categories
+        )
+
+
+        # Create a bar chart for the top categories
+        top_categories_chart = px.bar(
+            top_categories,
+            x=selected_numeric_column,
+            y=selected_category_column,
+            orientation="h",  # Horizontal bar chart
+            title=f"Top 20 {selected_category_column} by {selected_numeric_column}",
+            labels={selected_category_column: "Category", selected_numeric_column: "Value"},
+            text=selected_numeric_column  # Display values on bars
+        )
+
+        # Update layout for better appearance
+        top_categories_chart.update_layout(
+            yaxis=dict(autorange="reversed"),  # Reverse the order for descending values
+            xaxis_title="Value",
+            yaxis_title="Category",
+        )
+
+        # Display the chart
+        st.plotly_chart(top_categories_chart, use_container_width=True)
+
+
+
+
+
         # # Dynamic Breakdown Analysis Section
         # st.header("Dynamic Breakdown Analysis")
 
