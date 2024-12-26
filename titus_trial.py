@@ -243,6 +243,8 @@ if uploaded_file:
     # Main Dashboard Page
     if page == "Main Dashboard":
         # KPIs Section
+
+        st.write(filtered_data)
         st.header("Key Metrics")
         total_sales = filtered_data['Sales total'].sum()
         total_profit = filtered_data['Profit'].sum()
@@ -316,8 +318,18 @@ if uploaded_file:
         # Check if there is data to display
         if not filtered_data.empty:
             if trend_category == "None":
+
+                # Ensure DATE column is in datetime format
+                try:
+                    filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')  # Convert to datetime
+                    filtered_data = filtered_data.dropna(subset=['DATE'])  # Drop rows with invalid dates
+                except Exception as e:
+                    st.error(f"Error processing dates: {e}")
+
                 # Group data by DATE and calculate the sum of Sales and Cost
                 time_series_data = filtered_data.groupby("DATE")[["Sales total", "Cost total"]].sum().reset_index()
+
+                st.write(time_series_data)
 
                 # Create a line chart for overall trend
                 sales_cost_chart = px.line(
@@ -382,18 +394,35 @@ if uploaded_file:
 
         # Filter data for the selected client
         client_data = filtered_data[filtered_data['Client level'] == selected_client]
+        st.write(client_data)
+
+        # Dynamically identify categorical columns in the dataset
+        categorical_columns = client_data.select_dtypes(include=['object', 'category']).columns.tolist()
+
+        # Dropdown for selecting the grouping column
+        selected_group_column = st.selectbox(
+            "Select a Column to Group By",
+            options=categorical_columns,
+            index=0  # Default to the first categorical column
+        )
+
+        # Group data by the selected column and calculate total profit
+        category_profit = client_data.groupby(selected_group_column)["Profit"].sum().reset_index()
+
 
         # Group data by Category and calculate total profit
-        category_profit = client_data.groupby("Category1")["Profit"].sum().reset_index()
+        # category_profit = client_data.groupby("Category1")["Profit"].sum().reset_index()
+
+        st.write(category_profit)
 
         # Create a bar chart
         profit_bar_chart = px.bar(
             category_profit,
-            x="Category1",
+            x=selected_group_column,  # Dynamically set based on user selection
             y="Profit",
-            title=f"Profit by Category for Client: {selected_client}",
-            labels={"Category1": "Category", "Profit": "Total Profit (USD)"},
-            color="Category1",  # Optional: Different colors for each category
+            title=f"Profit by {selected_group_column} for Client: {selected_client}",
+            labels={selected_group_column: "Category", "Profit": "Total Profit (USD)"},
+            color=selected_group_column,  # Optional: Different colors for each category
             text="Profit"  # Show profit values on bars
         )
 
@@ -401,246 +430,246 @@ if uploaded_file:
         st.plotly_chart(profit_bar_chart, use_container_width=True)
 
 
-        # Dynamic Breakdown Analysis Section
-        st.header("Dynamic Breakdown Analysis")
+        # # Dynamic Breakdown Analysis Section
+        # st.header("Dynamic Breakdown Analysis")
 
-        # User Input for Metric and Aggregation Basis
-        col1, col2, col3 = st.columns([1, 1, 1])
+        # # User Input for Metric and Aggregation Basis
+        # col1, col2, col3 = st.columns([1, 1, 1])
 
-        with col1:
-            numeric_metric = st.selectbox(
-                "Select Numeric Metric to Analyze",
-                options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit"],
-                index=4,  # Default to "Profit"
-                key="dynamic_breakdown_numeric_metric"
-            )
+        # with col1:
+        #     numeric_metric = st.selectbox(
+        #         "Select Numeric Metric to Analyze",
+        #         options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit"],
+        #         index=4,  # Default to "Profit"
+        #         key="dynamic_breakdown_numeric_metric"
+        #     )
 
-        with col2:
-            aggregation_basis = st.selectbox(
-                "Aggregate By",
-                options=["Destination", "Client code", "Client level", "Sales", 
-                        "Category1", "Category2", "Type", "Loading warehouse"],
-                index=0,  # Default to "Destination"
-                key="dynamic_breakdown_aggregation_basis"
-            )
+        # with col2:
+        #     aggregation_basis = st.selectbox(
+        #         "Aggregate By",
+        #         options=["Destination", "Client code", "Client level", "Sales", 
+        #                 "Category1", "Category2", "Type", "Loading warehouse"],
+        #         index=0,  # Default to "Destination"
+        #         key="dynamic_breakdown_aggregation_basis"
+        #     )
 
-        with col3:
-            secondary_dimension = st.selectbox(
-                "Secondary Breakdown By",
-                options=["Destination", "Client code", "Client level", "Sales", 
-                        "Category1", "Category2", "Type", "Loading warehouse"],
-                index=4,  # Default to "Category1"
-                key="dynamic_breakdown_secondary_dimension"
-            )
+        # with col3:
+        #     secondary_dimension = st.selectbox(
+        #         "Secondary Breakdown By",
+        #         options=["Destination", "Client code", "Client level", "Sales", 
+        #                 "Category1", "Category2", "Type", "Loading warehouse"],
+        #         index=4,  # Default to "Category1"
+        #         key="dynamic_breakdown_secondary_dimension"
+        #     )
 
-        # Radar Selector for Display Option
-        display_option = st.radio(
-            "Choose Display Option",
-            options=["Absolute Sum", "Percentage Share"],
-            index=0  # Default to "Absolute Sum"
-        )
+        # # Radar Selector for Display Option
+        # display_option = st.radio(
+        #     "Choose Display Option",
+        #     options=["Absolute Sum", "Percentage Share"],
+        #     index=0  # Default to "Absolute Sum"
+        # )
 
-        # Generate the Chart Based on User Selections
-        if not filtered_data.empty:  # Ensure there is data to display
-            # Group data by selected aggregation_basis and secondary_dimension
-            aggregated_data = (
-                filtered_data.groupby([aggregation_basis, secondary_dimension])[numeric_metric]
-                .sum()
-                .reset_index()
-            )
+        # # Generate the Chart Based on User Selections
+        # if not filtered_data.empty:  # Ensure there is data to display
+        #     # Group data by selected aggregation_basis and secondary_dimension
+        #     aggregated_data = (
+        #         filtered_data.groupby([aggregation_basis, secondary_dimension])[numeric_metric]
+        #         .sum()
+        #         .reset_index()
+        #     )
 
-            if display_option == "Percentage Share":
-                # Calculate percentage share within each aggregation_basis group
-                aggregated_data["Percentage"] = (
-                    aggregated_data.groupby(aggregation_basis)[numeric_metric]
-                    .transform(lambda x: x / x.sum() * 100)
-                )
-                y_axis = "Percentage"  # Use percentage column for chart
-                y_label = "Percentage Share (%)"
-                chart_title = f"{numeric_metric} Percentage Share by {aggregation_basis} and {secondary_dimension}"
-            else:
-                y_axis = numeric_metric  # Use the original numeric metric
-                y_label = f"{numeric_metric} (Absolute)"
-                chart_title = f"{numeric_metric} Breakdown by {aggregation_basis} and {secondary_dimension}"
+        #     if display_option == "Percentage Share":
+        #         # Calculate percentage share within each aggregation_basis group
+        #         aggregated_data["Percentage"] = (
+        #             aggregated_data.groupby(aggregation_basis)[numeric_metric]
+        #             .transform(lambda x: x / x.sum() * 100)
+        #         )
+        #         y_axis = "Percentage"  # Use percentage column for chart
+        #         y_label = "Percentage Share (%)"
+        #         chart_title = f"{numeric_metric} Percentage Share by {aggregation_basis} and {secondary_dimension}"
+        #     else:
+        #         y_axis = numeric_metric  # Use the original numeric metric
+        #         y_label = f"{numeric_metric} (Absolute)"
+        #         chart_title = f"{numeric_metric} Breakdown by {aggregation_basis} and {secondary_dimension}"
 
-            # Create a bar chart (stacked for absolute sum or 100% stacked for percentage)
-            bar_chart = px.bar(
-                aggregated_data,
-                x=aggregation_basis,
-                y=y_axis,
-                color=secondary_dimension,  # Add color to differentiate secondary breakdown
-                title=chart_title,
-                labels={
-                    aggregation_basis: aggregation_basis,
-                    y_axis: y_label,
-                    secondary_dimension: "Secondary Breakdown",
-                },
-                barmode="stack",  # Stacked bar chart
-            )
+        #     # Create a bar chart (stacked for absolute sum or 100% stacked for percentage)
+        #     bar_chart = px.bar(
+        #         aggregated_data,
+        #         x=aggregation_basis,
+        #         y=y_axis,
+        #         color=secondary_dimension,  # Add color to differentiate secondary breakdown
+        #         title=chart_title,
+        #         labels={
+        #             aggregation_basis: aggregation_basis,
+        #             y_axis: y_label,
+        #             secondary_dimension: "Secondary Breakdown",
+        #         },
+        #         barmode="stack",  # Stacked bar chart
+        #     )
 
-            # Display the chart
-            st.plotly_chart(bar_chart, use_container_width=True)
+        #     # Display the chart
+        #     st.plotly_chart(bar_chart, use_container_width=True)
 
-        else:
-            st.warning("No data available to generate the chart. Please adjust your filters.")
+        # else:
+        #     st.warning("No data available to generate the chart. Please adjust your filters.")
 
-        # Bubble Chart: Volume and Weight Analysis
-        st.header("Volume and Weight Analysis")
+        # # Bubble Chart: Volume and Weight Analysis
+        # st.header("Volume and Weight Analysis")
 
-        # Check if data is available
-        if not filtered_data.empty:
-            # Create the bubble chart using Plotly Express
-            bubble_chart = px.scatter(
-                filtered_data,
-                x="Cost total",  # X-axis: Cost
-                y="Sales total",  # Y-axis: Sales
-                size="CBM",  # Bubble size: Volume
-                color="WEIGHT",  # Color intensity: Weight
-                hover_data={
-                    "Cost total": ":.2f",
-                    "Sales total": ":.2f",
-                    "CBM": ":.2f",
-                    "WEIGHT": ":.2f"
-                },
-                title="Cost vs. Sales (Bubble Size: Volume, Color: Weight)",
-                labels={
-                    "Cost total": "Cost (USD)",
-                    "Sales total": "Sales (USD)",
-                    "CBM": "Volume (CBM)",
-                    "WEIGHT": "Weight (kg)"
-                },
-            )
+        # # Check if data is available
+        # if not filtered_data.empty:
+        #     # Create the bubble chart using Plotly Express
+        #     bubble_chart = px.scatter(
+        #         filtered_data,
+        #         x="Cost total",  # X-axis: Cost
+        #         y="Sales total",  # Y-axis: Sales
+        #         size="CBM",  # Bubble size: Volume
+        #         color="WEIGHT",  # Color intensity: Weight
+        #         hover_data={
+        #             "Cost total": ":.2f",
+        #             "Sales total": ":.2f",
+        #             "CBM": ":.2f",
+        #             "WEIGHT": ":.2f"
+        #         },
+        #         title="Cost vs. Sales (Bubble Size: Volume, Color: Weight)",
+        #         labels={
+        #             "Cost total": "Cost (USD)",
+        #             "Sales total": "Sales (USD)",
+        #             "CBM": "Volume (CBM)",
+        #             "WEIGHT": "Weight (kg)"
+        #         },
+        #     )
 
-            # Update layout for better visualization
-            bubble_chart.update_traces(marker=dict(opacity=0.7, line=dict(width=1, color="DarkSlateGrey")))
-            bubble_chart.update_layout(
-                xaxis=dict(title="Cost (USD)", gridcolor="LightGrey"),
-                yaxis=dict(title="Sales (USD)", gridcolor="LightGrey"),
-                coloraxis_colorbar=dict(title="Weight (kg)"),
-            )
+        #     # Update layout for better visualization
+        #     bubble_chart.update_traces(marker=dict(opacity=0.7, line=dict(width=1, color="DarkSlateGrey")))
+        #     bubble_chart.update_layout(
+        #         xaxis=dict(title="Cost (USD)", gridcolor="LightGrey"),
+        #         yaxis=dict(title="Sales (USD)", gridcolor="LightGrey"),
+        #         coloraxis_colorbar=dict(title="Weight (kg)"),
+        #     )
 
-            # Display the bubble chart
-            st.plotly_chart(bubble_chart, use_container_width=True)
-        else:
-            st.warning("No data available to generate the chart. Please adjust your filters.")
+        #     # Display the bubble chart
+        #     st.plotly_chart(bubble_chart, use_container_width=True)
+        # else:
+        #     st.warning("No data available to generate the chart. Please adjust your filters.")
 
         # Dynamic Bubble Chart Section
         #st.header("Dynamic Bubble Chart Analysis")
 
-        # Define use cases dynamically
-        use_cases = {
-            "Profit vs. Sales by Destination": {
-                "x": "Sales total",
-                "y": "Profit",
-                "size": "CBM",
-                "color": "WEIGHT",
-                "category": "Destination",
-                "title": "Profit vs. Sales by Destination",
-                "x_label": "Sales (USD)",
-                "y_label": "Profit (USD)"
-            },
-            "Cost vs. Sales by Category": {
-                "x": "Cost total",
-                "y": "Sales total",
-                "size": "CBM",
-                "color": "WEIGHT",
-                "category": "Category1",
-                "title": "Cost vs. Sales by Category",
-                "x_label": "Cost (USD)",
-                "y_label": "Sales (USD)"
-            },
-            "Profit vs. Weight by Client Type": {
-                "x": "WEIGHT",
-                "y": "Profit",
-                "size": "CBM",
-                "color": "Sales total",
-                "category": "Client level",
-                "title": "Profit vs. Weight by Client Type",
-                "x_label": "Weight (kg)",
-                "y_label": "Profit (USD)"
-            },
-            "Volume (CBM) vs. Weight by Product Type": {
-                "x": "CBM",
-                "y": "WEIGHT",
-                "size": "Profit",
-                "color": "Sales total",
-                "category": "Type",
-                "title": "Volume vs. Weight by Product Type",
-                "x_label": "Volume (CBM)",
-                "y_label": "Weight (kg)"
-            },
-        }
+        # # Define use cases dynamically
+        # use_cases = {
+        #     "Profit vs. Sales by Destination": {
+        #         "x": "Sales total",
+        #         "y": "Profit",
+        #         "size": "CBM",
+        #         "color": "WEIGHT",
+        #         "category": "Destination",
+        #         "title": "Profit vs. Sales by Destination",
+        #         "x_label": "Sales (USD)",
+        #         "y_label": "Profit (USD)"
+        #     },
+        #     "Cost vs. Sales by Category": {
+        #         "x": "Cost total",
+        #         "y": "Sales total",
+        #         "size": "CBM",
+        #         "color": "WEIGHT",
+        #         "category": "Category1",
+        #         "title": "Cost vs. Sales by Category",
+        #         "x_label": "Cost (USD)",
+        #         "y_label": "Sales (USD)"
+        #     },
+        #     "Profit vs. Weight by Client Type": {
+        #         "x": "WEIGHT",
+        #         "y": "Profit",
+        #         "size": "CBM",
+        #         "color": "Sales total",
+        #         "category": "Client level",
+        #         "title": "Profit vs. Weight by Client Type",
+        #         "x_label": "Weight (kg)",
+        #         "y_label": "Profit (USD)"
+        #     },
+        #     "Volume (CBM) vs. Weight by Product Type": {
+        #         "x": "CBM",
+        #         "y": "WEIGHT",
+        #         "size": "Profit",
+        #         "color": "Sales total",
+        #         "category": "Type",
+        #         "title": "Volume vs. Weight by Product Type",
+        #         "x_label": "Volume (CBM)",
+        #         "y_label": "Weight (kg)"
+        #     },
+        # }
 
-            # Use Case Descriptions
-        use_case_descriptions = {
-            "Profit vs. Sales by Destination": """
-            **Description**: This chart shows the relationship between sales and profit for each destination. 
-            Larger bubbles represent higher shipment volumes (CBM), and darker colors represent heavier shipments (WEIGHT).
-            **How to Interpret**: Look for destinations with high profit and sales. Larger bubbles indicate significant shipment volumes, while darker bubbles mean higher weights.""",
+        #     # Use Case Descriptions
+        # use_case_descriptions = {
+        #     "Profit vs. Sales by Destination": """
+        #     **Description**: This chart shows the relationship between sales and profit for each destination. 
+        #     Larger bubbles represent higher shipment volumes (CBM), and darker colors represent heavier shipments (WEIGHT).
+        #     **How to Interpret**: Look for destinations with high profit and sales. Larger bubbles indicate significant shipment volumes, while darker bubbles mean higher weights.""",
             
-            "Cost vs. Sales by Category": """
-            **Description**: This chart compares the cost incurred and the sales revenue across product categories. 
-            Larger bubbles signify higher shipment volumes (CBM), and darker bubbles indicate heavier shipments (WEIGHT).
-            **How to Interpret**: Identify categories with a favorable cost-to-sales ratio. Look for categories with high sales and relatively lower costs.""",
+        #     "Cost vs. Sales by Category": """
+        #     **Description**: This chart compares the cost incurred and the sales revenue across product categories. 
+        #     Larger bubbles signify higher shipment volumes (CBM), and darker bubbles indicate heavier shipments (WEIGHT).
+        #     **How to Interpret**: Identify categories with a favorable cost-to-sales ratio. Look for categories with high sales and relatively lower costs.""",
             
-            "Profit vs. Weight by Client Type": """
-            **Description**: This chart examines profit versus the weight of shipments for different client levels. 
-            Larger bubbles represent higher shipment volumes (CBM), and darker colors show higher sales revenue (Sales total).
-            **How to Interpret**: Focus on client levels that generate the most profit for a given shipment weight. Larger and darker bubbles indicate significant revenue and volume.""",
+        #     "Profit vs. Weight by Client Type": """
+        #     **Description**: This chart examines profit versus the weight of shipments for different client levels. 
+        #     Larger bubbles represent higher shipment volumes (CBM), and darker colors show higher sales revenue (Sales total).
+        #     **How to Interpret**: Focus on client levels that generate the most profit for a given shipment weight. Larger and darker bubbles indicate significant revenue and volume.""",
             
-            "Volume (CBM) vs. Weight by Product Type": """
-            **Description**: This chart compares the volume (CBM) and weight of shipments for various product types. 
-            Larger bubbles represent higher profits, while darker bubbles indicate higher sales revenue.
-            **How to Interpret**: Identify product types that are bulkier or heavier and their corresponding profitability and sales.""",
-        }
+        #     "Volume (CBM) vs. Weight by Product Type": """
+        #     **Description**: This chart compares the volume (CBM) and weight of shipments for various product types. 
+        #     Larger bubbles represent higher profits, while darker bubbles indicate higher sales revenue.
+        #     **How to Interpret**: Identify product types that are bulkier or heavier and their corresponding profitability and sales.""",
+        # }
 
-        # Dynamic Bubble Chart Section
-        st.header("Dynamic Multi-Dimension Analysis")
+        # # Dynamic Bubble Chart Section
+        # st.header("Dynamic Multi-Dimension Analysis")
 
-        # User selects a use case
-        selected_use_case = st.selectbox("Choose a Use Case", options=list(use_cases.keys()))
+        # # User selects a use case
+        # selected_use_case = st.selectbox("Choose a Use Case", options=list(use_cases.keys()))
 
-        # Retrieve selected use case configuration
-        config = use_cases[selected_use_case]
+        # # Retrieve selected use case configuration
+        # config = use_cases[selected_use_case]
 
-        # Display the use case description
-        st.markdown(use_case_descriptions[selected_use_case])
+        # # Display the use case description
+        # st.markdown(use_case_descriptions[selected_use_case])
 
-        # Generate Bubble Chart
-        if not filtered_data.empty:
-            bubble_chart = px.scatter(
-                filtered_data,
-                x=config["x"],
-                y=config["y"],
-                size=config["size"],
-                color=config["color"],
-                facet_col=config["category"],
-                title=config["title"],
-                labels={
-                    config["x"]: config["x_label"],
-                    config["y"]: config["y_label"],
-                    config["size"]: "Bubble Size",
-                    config["color"]: "Color Intensity",
-                },
-                hover_data={
-                    config["x"]: ":.2f",
-                    config["y"]: ":.2f",
-                    config["size"]: ":.2f",
-                    config["color"]: ":.2f"
-                },
-            )
-            # Style adjustments
-            bubble_chart.update_traces(marker=dict(opacity=0.7, line=dict(width=1, color="DarkSlateGrey")))
-            bubble_chart.update_layout(
-                xaxis=dict(title=config["x_label"], gridcolor="LightGrey"),
-                yaxis=dict(title=config["y_label"], gridcolor="LightGrey"),
-                coloraxis_colorbar=dict(title=config["color"]),
-            )
+        # # Generate Bubble Chart
+        # if not filtered_data.empty:
+        #     bubble_chart = px.scatter(
+        #         filtered_data,
+        #         x=config["x"],
+        #         y=config["y"],
+        #         size=config["size"],
+        #         color=config["color"],
+        #         facet_col=config["category"],
+        #         title=config["title"],
+        #         labels={
+        #             config["x"]: config["x_label"],
+        #             config["y"]: config["y_label"],
+        #             config["size"]: "Bubble Size",
+        #             config["color"]: "Color Intensity",
+        #         },
+        #         hover_data={
+        #             config["x"]: ":.2f",
+        #             config["y"]: ":.2f",
+        #             config["size"]: ":.2f",
+        #             config["color"]: ":.2f"
+        #         },
+        #     )
+        #     # Style adjustments
+        #     bubble_chart.update_traces(marker=dict(opacity=0.7, line=dict(width=1, color="DarkSlateGrey")))
+        #     bubble_chart.update_layout(
+        #         xaxis=dict(title=config["x_label"], gridcolor="LightGrey"),
+        #         yaxis=dict(title=config["y_label"], gridcolor="LightGrey"),
+        #         coloraxis_colorbar=dict(title=config["color"]),
+        #     )
 
-            # Display the chart
-            st.plotly_chart(bubble_chart, use_container_width=True)
-        else:
-            st.warning("No data available to generate the chart. Please adjust your filters.")
+        #     # Display the chart
+        #     st.plotly_chart(bubble_chart, use_container_width=True)
+        # else:
+        #     st.warning("No data available to generate the chart. Please adjust your filters.")
 
 
     # Comparison Report Page
