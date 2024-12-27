@@ -244,14 +244,89 @@ if uploaded_file:
     if page == "Main Dashboard":
         # KPIs Section
 
-        st.write(filtered_data)
+        # Extract new columns from DATE
+        #filtered_data['Year'] = filtered_data['DATE'].dt.year
+        #filtered_data['Month'] = filtered_data['DATE'].dt.month
+        filtered_data['Month'] = filtered_data['DATE'].dt.month.fillna("Not Available").astype(object)
+
+
+        filtered_data['Year'] = filtered_data['DATE'].dt.year.fillna("Not Available").astype(object)
+
+        #filtered_data['Week'] = filtered_data['DATE'].dt.isocalendar().week  # ISO week
+
+
+        
+        # Key Metrics Section
         st.header("Key Metrics")
-        total_sales = filtered_data['Sales total'].sum()
-        total_profit = filtered_data['Profit'].sum()
-        total_cost = filtered_data['Cost total'].sum()
-        total_weight = filtered_data['WEIGHT'].sum()
-        total_volume = filtered_data['CBM'].sum()
-        total_shipments = len(filtered_data)
+
+        # Ensure DATE is in datetime format
+        filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')
+
+        # Extract Month and Year with "Not Available" for missing values
+        filtered_data['Month'] = filtered_data['DATE'].apply(
+            lambda x: x.month if pd.notna(x) else "Not Available"
+        ).astype(str)
+
+        filtered_data['Year'] = filtered_data['DATE'].apply(
+            lambda x: x.year if pd.notna(x) else "Not Available"
+        ).astype(str)
+
+
+
+        #st.write(filtered_data)
+
+        # Dropdown for dynamic aggregation
+        aggregation_year = st.selectbox(
+            "Select Year for Aggregation",
+            options=sorted(filtered_data['Year'].dropna().unique()),  # Unique years sorted
+            index=0  # Default to the first year
+        )
+
+        # Filter data for the selected year
+        filtered_data_year = filtered_data[filtered_data['Year'] == aggregation_year]
+
+        # Aggregate metrics dynamically by month
+        monthly_aggregated = (
+            filtered_data_year.groupby(filtered_data_year['DATE'].dt.month)
+            .agg({
+                'Sales total': 'sum',
+                'Profit': 'sum',
+                'Cost total': 'sum',
+                'WEIGHT': 'sum',
+                'CBM': 'sum',
+                'Shipment NO.': 'count',
+                'Client code': pd.Series.nunique  # Unique count of clients
+            })
+
+            	
+
+            .rename(columns={
+                'Sales total': 'Total Sales',
+                'Profit': 'Total Profit',
+                'Cost total': 'Total Cost',
+                'WEIGHT': 'Total Weight',
+                'CBM': 'Total Volume',
+                'Shipment NO.': 'Total Shipments',
+                'Client code': 'Total Clients'
+            })
+            .reset_index()
+        )
+
+        # Map month numbers to names
+        month_mapping = {
+            1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+            7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
+        }
+        monthly_aggregated['Month Name'] = monthly_aggregated['DATE'].map(month_mapping)
+
+        # Calculate overall metrics for the selected year
+        total_sales = filtered_data_year['Sales total'].sum()
+        total_profit = filtered_data_year['Profit'].sum()
+        total_cost = filtered_data_year['Cost total'].sum()
+        total_weight = filtered_data_year['WEIGHT'].sum()
+        total_volume = filtered_data_year['CBM'].sum()
+        total_shipments = filtered_data_year['Shipment NO.'].count()
+        total_clients = filtered_data_year['Client code'].nunique()
 
         # Display KPIs
         col1, col2, col3 = st.columns(3)
@@ -263,6 +338,54 @@ if uploaded_file:
         col4.metric(label="🏷️ Total Cost", value=f"${total_cost:,.2f}")
         col5.metric(label="⚖️ Total Weight", value=f"{total_weight:,.2f} kg")
         col6.metric(label="📐 Total Volume", value=f"{total_volume:,.2f} m³")
+
+        col7, col8 = st.columns(2)
+        col7.metric(label="👥 Total Clients", value=total_clients)
+
+        # Display Monthly Aggregated Metrics
+        st.subheader(f"Monthly Metrics for {aggregation_year}")
+        st.dataframe(monthly_aggregated, use_container_width=True)
+
+
+
+        # # Profit Analysis Section
+        # st.header("Profit Analysis")
+
+        # # User Choices for Metric and Aggregation in the same row
+        # col1, col2 = st.columns(2)
+
+        # with col1:
+        #     numeric_metric = st.selectbox(
+        #         "Select Numeric Metric to Analyze",
+        #         options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit"],
+        #         index=4  # Default to "Profit"
+        #     )
+
+        # with col2:
+        #     aggregation_basis = st.selectbox(
+        #         "Aggregate By",
+        #         options=["Destination", "Client code", "Client level", "Sales", 
+        #                 "Category1", "Category2", "Type", "Loading warehouse", "Month", "Week"],
+        #         index=0  # Default to "Destination"
+        #     )
+
+        # # Generate Bar Chart Based on User Selections
+        # if not filtered_data.empty:  # Ensure there is data to display
+        #     aggregated_data = (
+        #         filtered_data.groupby(aggregation_basis)[numeric_metric].sum().reset_index()
+        #     )
+        #     bar_chart = px.bar(
+        #         aggregated_data,
+        #         x=aggregation_basis,
+        #         y=numeric_metric,
+        #         title=f"{numeric_metric} by {aggregation_basis}",
+        #         labels={aggregation_basis: aggregation_basis, numeric_metric: numeric_metric},
+        #         color=aggregation_basis,
+        #     )
+        #     st.plotly_chart(bar_chart, use_container_width=True)
+        # else:
+        #     st.warning("No data available to generate the chart. Please adjust your filters.")
+
 
 
         # Profit Analysis Section
@@ -282,26 +405,83 @@ if uploaded_file:
             aggregation_basis = st.selectbox(
                 "Aggregate By",
                 options=["Destination", "Client code", "Client level", "Sales", 
-                        "Category1", "Category2", "Type", "Loading warehouse"],
+                        "Category1", "Category2", "Type", "Loading warehouse", "Month"],
                 index=0  # Default to "Destination"
             )
+        # Copy data for analysis to avoid modifying the original dataset
+        analysis_data = filtered_data.copy()
+
+        #st.write(analysis_data)
+
+        # Manually map month numbers to names
+        month_mapping = {
+            "1": "January", "2": "February", "3": "March", "4": "April",
+            "5": "May", "6": "June", "7": "July", "8": "August",
+            "9": "September", "10": "October", "11": "November", "12": "December", "Not Available": "Not Available"
+        }
+        analysis_data['Month Name'] = analysis_data['Month'].map(month_mapping)
+
+        # Drop rows with None in 'Month Name'
+        #analysis_data = analysis_data.dropna(subset=['Month Name'])
+
+        # Ensure Month Name is categorical and ordered
+        month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+                    'July', 'August', 'September', 'October', 'November', 'December']
+        analysis_data['Month Name'] = pd.Categorical(analysis_data['Month Name'], categories=month_order, ordered=True)
+
+        if aggregation_basis == "Month":
+            st.info("Please choose a year for the Month aggregation.")
+
+            # Debugging unique years
+            unique_years = analysis_data['Year'].unique().tolist()
+            #st.write("Unique Years:", unique_years)
+
+            selected_year = st.selectbox(
+                "Select Year",
+                options=sorted(unique_years),  # Sort years in ascending order
+                index=unique_years.index("2024") if "2024" in unique_years else 0  # Default to "2024" if available
+            )
+            
+            # Filter the data for the selected year
+            analysis_data = analysis_data[analysis_data['Year'] == selected_year]
+            #st.write("Filtered Analysis Data:", analysis_data)
 
         # Generate Bar Chart Based on User Selections
-        if not filtered_data.empty:  # Ensure there is data to display
-            aggregated_data = (
-                filtered_data.groupby(aggregation_basis)[numeric_metric].sum().reset_index()
-            )
+        if not analysis_data.empty:  # Ensure there is data to display
+            if aggregation_basis == "Month":
+                # Aggregate by Month Name
+                aggregated_data = (
+                    analysis_data.groupby("Month Name")[numeric_metric].sum().reset_index()
+                )
+                x_axis = "Month Name"  # Use month names for the x-axis
+            else:
+                # Aggregate by selected basis
+                aggregated_data = (
+                    analysis_data.groupby(aggregation_basis)[numeric_metric].sum().reset_index()
+                )
+                x_axis = aggregation_basis  # Use selected basis for the x-axis
+
+            # Create the bar chart
             bar_chart = px.bar(
                 aggregated_data,
-                x=aggregation_basis,
+                x=x_axis,
                 y=numeric_metric,
-                title=f"{numeric_metric} by {aggregation_basis}",
-                labels={aggregation_basis: aggregation_basis, numeric_metric: numeric_metric},
-                color=aggregation_basis,
+                title=f"{numeric_metric} by {aggregation_basis}" + 
+                    (f" for {selected_year}" if aggregation_basis == "Month" else ""),
+                labels={x_axis: aggregation_basis, numeric_metric: numeric_metric},
+                color=x_axis,
             )
             st.plotly_chart(bar_chart, use_container_width=True)
         else:
             st.warning("No data available to generate the chart. Please adjust your filters.")
+
+
+
+
+
+
+
+
 
 
         # Sales vs. Cost Analysis Section
