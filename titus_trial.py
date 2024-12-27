@@ -286,6 +286,7 @@ if uploaded_file:
         filtered_data_year = filtered_data[filtered_data['Year'] == aggregation_year]
 
         # Aggregate metrics dynamically by month
+        # Aggregate metrics dynamically by month
         monthly_aggregated = (
             filtered_data_year.groupby(filtered_data_year['DATE'].dt.month)
             .agg({
@@ -297,9 +298,6 @@ if uploaded_file:
                 'Shipment NO.': 'count',
                 'Client code': pd.Series.nunique  # Unique count of clients
             })
-
-            	
-
             .rename(columns={
                 'Sales total': 'Total Sales',
                 'Profit': 'Total Profit',
@@ -312,12 +310,31 @@ if uploaded_file:
             .reset_index()
         )
 
+        # Calculate yearly totals for each metric
+        yearly_totals = monthly_aggregated[['Total Sales', 'Total Profit', 'Total Cost', 
+                                            'Total Weight', 'Total Volume', 'Total Shipments']].sum()
+
+        # Add percentage share columns for each metric
+        for column in ['Total Sales', 'Total Profit', 'Total Cost', 'Total Weight', 'Total Volume', 'Total Shipments']:
+            monthly_aggregated[f"{column} %"] = (monthly_aggregated[column] / yearly_totals[column]) * 100
+
         # Map month numbers to names
         month_mapping = {
             1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
             7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
         }
         monthly_aggregated['Month Name'] = monthly_aggregated['DATE'].map(month_mapping)
+
+        # Reorder columns to place percentages next to their metrics
+        cols_order = ['Month Name', 'Total Sales', 'Total Sales %', 'Total Profit', 'Total Profit %', 
+                    'Total Cost', 'Total Cost %', 'Total Weight', 'Total Weight %', 
+                    'Total Volume', 'Total Volume %', 'Total Shipments', 'Total Shipments %', 'Total Clients']
+        monthly_aggregated = monthly_aggregated[cols_order]
+
+        # Display Monthly Aggregated Metrics
+        st.subheader(f"Monthly Metrics for {aggregation_year}")
+        st.dataframe(monthly_aggregated, use_container_width=True)
+
 
         # Calculate overall metrics for the selected year
         total_sales = filtered_data_year['Sales total'].sum()
@@ -343,8 +360,8 @@ if uploaded_file:
         col7.metric(label="👥 Total Clients", value=total_clients)
 
         # Display Monthly Aggregated Metrics
-        st.subheader(f"Monthly Metrics for {aggregation_year}")
-        st.dataframe(monthly_aggregated, use_container_width=True)
+        #st.subheader(f"Monthly Metrics for {aggregation_year}")
+        #st.dataframe(monthly_aggregated, use_container_width=True)
 
 
 
