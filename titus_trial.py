@@ -756,6 +756,8 @@ if uploaded_file:
 
             # Create the selected chart type
             if chart_type == "Bar Chart":
+
+                st.write(profit_data)
                 profit_chart = px.bar(
                     profit_data,
                     x=x_axis,
@@ -766,15 +768,24 @@ if uploaded_file:
                     barmode="group"  # Grouped bar chart
                 )
             else:
+            # Handle negative values for the scatter plot
+            # if chart_type == "Scatter Plot":
+                # Ensure size is non-negative by taking the absolute value of Profit %
+                profit_data["Size (Profit %)"] = profit_data["Profit %"].abs()
+
+
+                st.write(profit_data)
+
+                # Add hover data to indicate the original Profit values
                 profit_chart = px.scatter(
                     profit_data,
                     x=x_axis,
                     y="Profit",
                     color=profit_category,
-                    size="Profit %",
+                    size="Size (Profit %)",  # Use the absolute value for the size
                     title=title,
                     labels={x_axis: "Date/Month", "Profit": "Profit (USD)", profit_category: profit_category},
-                    hover_data=["Profit %"],  # Show percentage in hover info
+                    hover_data=["Profit", "Profit %"],  # Include original Profit and Percentage in hover info
                 )
 
             # Display the chart
