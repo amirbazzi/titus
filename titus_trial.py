@@ -660,6 +660,43 @@ if uploaded_file:
             index=0  # Default to "Bar Chart"
         )
 
+        # Dropdown for percentage calculation method
+        percentage_method = st.selectbox(
+            "Select Percentage Calculation Method",
+            options=["Yearly Percentage", "Within Period Percentage"],
+            index=0  # Default to "Yearly Percentage"
+        )
+
+
+       # Expandable Explanation Section
+        with st.expander("Explanation of Percentage Methods"):
+            st.markdown("""
+            **Yearly Percentage**:
+            - The percentage is calculated relative to the total profit for the selected category across the entire year.
+            - **Example**: If the total profit for "Client A" over the year is $10,000 and their profit for January is $2,000, the **Yearly Percentage** for January is:
+            """)
+
+            st.latex(r'''
+            \text{Yearly Percentage} = \left( \frac{\text{Profit for January}}{\text{Total Profit for the Year}} \right) \times 100
+            ''')
+            
+            st.markdown("""
+            **Within Period Percentage**:
+            - The percentage is calculated relative to the total profit for all categories within the same time period (day or month).
+            - **Example**: If the total profit for January is $5,000 and "Client A" contributed $2,000, the **Within Period Percentage** for "Client A" in January is:
+            """)
+
+            st.latex(r'''
+            \text{Within Period Percentage} = \left( \frac{\text{Profit for Client A in January}}{\text{Total Profit for January}} \right) \times 100
+            ''')
+            
+            st.markdown("""
+            **Use Cases**:
+            - Use **Yearly Percentage** to compare contributions to yearly totals.
+            - Use **Within Period Percentage** to compare contributions within specific days or months.
+            """)
+
+
         # Manually map month numbers to names
         month_mapping = {
             "1": "January", "2": "February", "3": "March", "4": "April",
@@ -667,8 +704,6 @@ if uploaded_file:
             "9": "September", "10": "October", "11": "November", "12": "December", "Not Available": "Not Available"
         }
         filtered_data['Month Name'] = filtered_data['Month'].map(month_mapping)
-
-
 
 
         # # Set categorical ordering for months
@@ -686,20 +721,26 @@ if uploaded_file:
             # Group data based on aggregation level
             if profit_aggregation_level == "Daily":
                 profit_data = filtered_data.groupby(["DATE", profit_category])["Profit"].sum().reset_index()
-                #st.write(profit_data)
                 x_axis = "DATE"
                 title = f"Profit by {profit_category} (Daily)"
             else:
                 profit_data = filtered_data.groupby(["Month Name", profit_category])["Profit"].sum().reset_index()
-                #st.write(profit_data)
                 x_axis = "Month Name"
                 title = f"Profit by {profit_category} (Monthly)"
 
-            # Add a percentage column relative to yearly sum
-            yearly_totals = profit_data.groupby(profit_category)["Profit"].sum().reset_index()
-            yearly_totals.rename(columns={"Profit": "Yearly Total Profit"}, inplace=True)
-            profit_data = profit_data.merge(yearly_totals, on=profit_category)
-            profit_data["Profit %"] = (profit_data["Profit"] / profit_data["Yearly Total Profit"]) * 100
+            # Add percentage column based on user selection
+            if percentage_method == "Yearly Percentage":
+                # Calculate yearly percentage
+                yearly_totals = profit_data.groupby(profit_category)["Profit"].sum().reset_index()
+                yearly_totals.rename(columns={"Profit": "Yearly Total Profit"}, inplace=True)
+                profit_data = profit_data.merge(yearly_totals, on=profit_category)
+                profit_data["Profit %"] = (profit_data["Profit"] / profit_data["Yearly Total Profit"]) * 100
+            else:
+                # Calculate within period percentage
+                profit_data["Profit %"] = (
+                    profit_data.groupby(x_axis)["Profit"]
+                    .transform(lambda x: (x / x.sum()) * 100)
+                )
 
             # Show all categories by default
             category_values = profit_data[profit_category].unique().tolist()
@@ -712,23 +753,6 @@ if uploaded_file:
             # Filter data if specific category values are selected
             if selected_profit_categories:
                 profit_data = profit_data[profit_data[profit_category].isin(selected_profit_categories)]
-                st.write(profit_data)
-                with st.expander("Profit Percentage Calculation"):
-             
-
-                    # Explanation Section
-                    st.markdown("""
-                    - **Part**: The profit for a specific combination of `profit_category` (e.g., "Destination") and the selected aggregation level (Daily or Monthly).
-                    - **Whole**: The total profit for the same `profit_category` over the entire year.
-                    """)
-
-                    # Formula Display Section
-                    st.subheader("Formula")
-                    st.latex(r'''
-                    Profit\ \% = \left( \frac{\text{Profit (for a specific category and time period)}}{\text{Total Profit (for the same category across the year)}} \right) \times 100
-                    ''')
-
-
 
             # Create the selected chart type
             if chart_type == "Bar Chart":
@@ -757,7 +781,6 @@ if uploaded_file:
             st.plotly_chart(profit_chart, use_container_width=True)
         else:
             st.warning("No data available to generate the chart. Please adjust your filters.")
-
 
         # Client Analysis Section
         st.header("Client Analysis")
