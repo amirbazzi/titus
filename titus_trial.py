@@ -359,54 +359,9 @@ if uploaded_file:
         col7, col8 = st.columns(2)
         col7.metric(label="👥 Total Clients", value=total_clients)
 
-        # Display Monthly Aggregated Metrics
-        #st.subheader(f"Monthly Metrics for {aggregation_year}")
-        #st.dataframe(monthly_aggregated, use_container_width=True)
-
-
-
-        # # Profit Analysis Section
-        # st.header("Profit Analysis")
-
-        # # User Choices for Metric and Aggregation in the same row
-        # col1, col2 = st.columns(2)
-
-        # with col1:
-        #     numeric_metric = st.selectbox(
-        #         "Select Numeric Metric to Analyze",
-        #         options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit"],
-        #         index=4  # Default to "Profit"
-        #     )
-
-        # with col2:
-        #     aggregation_basis = st.selectbox(
-        #         "Aggregate By",
-        #         options=["Destination", "Client code", "Client level", "Sales", 
-        #                 "Category1", "Category2", "Type", "Loading warehouse", "Month", "Week"],
-        #         index=0  # Default to "Destination"
-        #     )
-
-        # # Generate Bar Chart Based on User Selections
-        # if not filtered_data.empty:  # Ensure there is data to display
-        #     aggregated_data = (
-        #         filtered_data.groupby(aggregation_basis)[numeric_metric].sum().reset_index()
-        #     )
-        #     bar_chart = px.bar(
-        #         aggregated_data,
-        #         x=aggregation_basis,
-        #         y=numeric_metric,
-        #         title=f"{numeric_metric} by {aggregation_basis}",
-        #         labels={aggregation_basis: aggregation_basis, numeric_metric: numeric_metric},
-        #         color=aggregation_basis,
-        #     )
-        #     st.plotly_chart(bar_chart, use_container_width=True)
-        # else:
-        #     st.warning("No data available to generate the chart. Please adjust your filters.")
-
-
 
         # Profit Analysis Section
-        st.header("Profit Analysis")
+        st.header("Profit/Cost/Sales/Weight Analysis by Category")
 
         # User Choices for Metric and Aggregation in the same row
         col1, col2 = st.columns(2)
@@ -494,90 +449,315 @@ if uploaded_file:
 
 
 
+        # # Profit Analysis Section
+        # st.header("Profit Analysis by Category")
+
+        # # Dropdown for category selection
+        # profit_category = st.selectbox(
+        #     "Select Category to Analyze Profit By",
+        #     options=["Destination", "Client code", "Client level", "Sales", 
+        #             "Category1", "Category2", "Type", "Loading warehouse"],
+        #     index=0  # Default to "Destination"
+        # )
+
+        # # Radio button for aggregation level
+        # profit_aggregation_level = st.radio(
+        #     "Select Aggregation Level",
+        #     options=["Daily", "Monthly"],  # Options for grouping
+        #     index=0  # Default to "Daily"
+        # )
+
+
+        #                 # Manually map month numbers to names
+        # month_mapping = {
+        #     "1": "January", "2": "February", "3": "March", "4": "April",
+        #     "5": "May", "6": "June", "7": "July", "8": "August",
+        #     "9": "September", "10": "October", "11": "November", "12": "December", "Not Available": "Not Available"
+        # }
+        # filtered_data['Month Name'] = filtered_data['Month'].map(month_mapping)
 
 
 
 
+        # # Set categorical ordering for months
+        # month_order = [
+        #     "January", "February", "March", "April", "May", "June",
+        #     "July", "August", "September", "October", "November", "December", "Not Available"
+        # ]
+        # filtered_data['Month Name'] = pd.Categorical(filtered_data['Month Name'], categories=month_order, ordered=True)
 
 
 
-        # Sales vs. Cost Analysis Section
-        st.header("Sales vs. Cost Analysis")
+        # # Check if there is data to display
+        # if not filtered_data.empty:
+        #     # Group data based on aggregation level
+        #     if profit_aggregation_level == "Daily":
+        #         # Group data by DATE and selected category
 
-        # Dropdown to analyze trends by category
-        trend_category = st.selectbox(
-            "Analyze Trend By (Optional)",
-            options=["None", "Destination", "Client code", "Client level", "Sales", 
+        #         profit_data = filtered_data.groupby(["DATE", profit_category])["Profit"].sum().reset_index()
+        #         st.write(profit_data)
+
+        #         x_axis = "DATE"
+        #         title = f"Profit by {profit_category} (Daily)"
+        #     else:
+        #         # Group data by Month Name and selected category
+        #         profit_data = filtered_data.groupby(["Month Name", profit_category])["Profit"].sum().reset_index()
+        #         st.write(profit_data)
+
+        #         x_axis = "Month Name"
+        #         title = f"Profit by {profit_category} (Monthly)"
+
+        #     # Show all categories by default
+        #     category_values = profit_data[profit_category].unique().tolist()
+        #     selected_profit_categories = st.multiselect(
+        #         f"Filter by {profit_category} (Optional)",
+        #         options=category_values,
+        #         default=category_values  # Default to all values
+        #     )
+
+        #     # Filter data if specific category values are selected
+        #     if selected_profit_categories:
+        #         profit_data = profit_data[profit_data[profit_category].isin(selected_profit_categories)]
+
+        #     # Create a bar chart for profit
+        #     profit_chart = px.bar(
+        #         profit_data,
+        #         x=x_axis,
+        #         y="Profit",
+        #         color=profit_category,
+        #         title=title,
+        #         labels={x_axis: "Date/Month", "Profit": "Profit (USD)", profit_category: profit_category},
+        #         barmode="group"  # Grouped bar chart
+        #     )
+
+        #     # Display the chart
+        #     st.plotly_chart(profit_chart, use_container_width=True)
+        # else:
+        #     st.warning("No data available to generate the chart. Please adjust your filters.")
+
+
+
+
+        # # Sales vs. Cost Analysis Section
+        # st.header("Sales vs. Cost Analysis")
+
+        # # Dropdown to analyze trends by category
+        # trend_category = st.selectbox(
+        #     "Analyze Trend By (Optional)",
+        #     options=["None", "Destination", "Client code", "Client level", "Sales", 
+        #             "Category1", "Category2", "Type", "Loading warehouse"],
+        #     index=0  # Default to "None"
+        # )
+
+        # # Radio button for aggregation level
+        # aggregation_level = st.radio(
+        #     "Select Aggregation Level",
+        #     options=["Daily", "Monthly"],  # Options for grouping
+        #     index=0,  # Default to "Daily"
+        #     key = "cost_vs_sales"
+        # )
+
+        
+
+        # st.write(filtered_data)
+
+        # # Check if there is data to display
+        # if not filtered_data.empty:
+        #     if trend_category == "None":
+        #         # Group data based on aggregation level
+        #         if aggregation_level == "Daily":
+        #             # Group data by DATE
+        #             time_series_data = filtered_data.groupby("DATE")[["Sales total", "Cost total"]].sum().reset_index()
+        #             x_axis = "DATE"
+        #             title = "Sales vs. Cost Over Time (Daily)"
+        #         else:
+        #             # Group data by Month Name
+        #             time_series_data = filtered_data.groupby("Month Name")[["Sales total", "Cost total"]].sum().reset_index()
+        #             x_axis = "Month Name"
+        #             title = "Sales vs. Cost Over Time (Monthly)"
+
+        #         # Create a chart for the trend
+        #         sales_cost_chart = px.line(
+        #             time_series_data,
+        #             x=x_axis,
+        #             y=["Sales total", "Cost total"],
+        #             labels={"value": "Amount (USD)", "variable": "Metric", x_axis: "Date/Month"},
+        #             title=title,
+        #         )
+        #     else:
+        #         # Group data by DATE and selected category
+        #         if aggregation_level == "Daily":
+        #             time_series_data = filtered_data.groupby(["DATE", trend_category])[["Sales total", "Cost total"]].sum().reset_index()
+        #             x_axis = "DATE"
+        #             title = f"Sales vs. Cost Over Time by {trend_category} (Daily)"
+        #         else:
+        #             time_series_data = filtered_data.groupby(["Month Name", trend_category])[["Sales total", "Cost total"]].sum().reset_index()
+        #             x_axis = "Month Name"
+        #             title = f"Sales vs. Cost Over Time by {trend_category} (Monthly)"
+
+        #         # Show all categories by default
+        #         category_values = time_series_data[trend_category].unique().tolist()
+        #         selected_category_values = st.multiselect(
+        #             f"Filter by {trend_category} (Optional)",
+        #             options=category_values,
+        #             default=category_values  # Default to all values
+        #         )
+
+        #         # Filter data if specific category values are selected
+        #         if selected_category_values:
+        #             time_series_data = time_series_data[time_series_data[trend_category].isin(selected_category_values)]
+
+        #         # Transform data for better distinction between Sales and Cost
+        #         melted_data = time_series_data.melt(
+        #             id_vars=[x_axis, trend_category], 
+        #             value_vars=["Sales total", "Cost total"], 
+        #             var_name="Metric", 
+        #             value_name="Amount"
+        #         )
+
+        #         # Create a combined column for unique coloring
+        #         melted_data["Category_Metric"] = melted_data[trend_category] + " - " + melted_data["Metric"]
+
+        #         # Create a chart with distinct colors for each Category + Metric combination
+        #         sales_cost_chart = px.line(
+        #             melted_data,
+        #             x=x_axis,
+        #             y="Amount",
+        #             color="Category_Metric",  # Unique color for each category + metric
+        #             labels={"Category_Metric": "Category and Metric", "Amount": "Amount (USD)", x_axis: "Date/Month"},
+        #             title=title,
+        #         )
+
+        #     # Display the chart
+        #     st.plotly_chart(sales_cost_chart, use_container_width=True)
+        # else:
+        #     st.warning("No data available to generate the chart. Please adjust your filters.")
+
+
+        # Profit Analysis Section
+        st.header("Profit Analysis by Category")
+
+
+        # Dropdown for category selection
+        profit_category = st.selectbox(
+            "Select Category to Analyze Profit By",
+            options=["Destination", "Client code", "Client level", "Sales", 
                     "Category1", "Category2", "Type", "Loading warehouse"],
-            index=0  # Default to "None"
+            index=0  # Default to "Destination"
         )
+
+        # Radio button for aggregation level
+        profit_aggregation_level = st.radio(
+            "Select Aggregation Level",
+            options=["Daily", "Monthly"],  # Options for grouping
+            index=0  # Default to "Daily"
+        )
+
+        # Radio button for chart type
+        chart_type = st.radio(
+            "Select Chart Type",
+            options=["Bar Chart", "Scatter Plot"],  # User can choose between bar and scatter
+            index=0  # Default to "Bar Chart"
+        )
+
+        # Manually map month numbers to names
+        month_mapping = {
+            "1": "January", "2": "February", "3": "March", "4": "April",
+            "5": "May", "6": "June", "7": "July", "8": "August",
+            "9": "September", "10": "October", "11": "November", "12": "December", "Not Available": "Not Available"
+        }
+        filtered_data['Month Name'] = filtered_data['Month'].map(month_mapping)
+
+
+
+
+        # # Set categorical ordering for months
+        month_order = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December", "Not Available"
+        ]
+        #filtered_data['Month Name'] = pd.Categorical(filtered_data['Month Name'], categories=month_order, ordered=True)
+
+        # Map month numbers to names if not already mapped
+        filtered_data['Month Name'] = pd.Categorical(filtered_data['Month Name'], categories=month_order, ordered=True)
 
         # Check if there is data to display
         if not filtered_data.empty:
-            if trend_category == "None":
+            # Group data based on aggregation level
+            if profit_aggregation_level == "Daily":
+                profit_data = filtered_data.groupby(["DATE", profit_category])["Profit"].sum().reset_index()
+                #st.write(profit_data)
+                x_axis = "DATE"
+                title = f"Profit by {profit_category} (Daily)"
+            else:
+                profit_data = filtered_data.groupby(["Month Name", profit_category])["Profit"].sum().reset_index()
+                #st.write(profit_data)
+                x_axis = "Month Name"
+                title = f"Profit by {profit_category} (Monthly)"
 
-                # Ensure DATE column is in datetime format
-                try:
-                    filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')  # Convert to datetime
-                    filtered_data = filtered_data.dropna(subset=['DATE'])  # Drop rows with invalid dates
-                except Exception as e:
-                    st.error(f"Error processing dates: {e}")
+            # Add a percentage column relative to yearly sum
+            yearly_totals = profit_data.groupby(profit_category)["Profit"].sum().reset_index()
+            yearly_totals.rename(columns={"Profit": "Yearly Total Profit"}, inplace=True)
+            profit_data = profit_data.merge(yearly_totals, on=profit_category)
+            profit_data["Profit %"] = (profit_data["Profit"] / profit_data["Yearly Total Profit"]) * 100
 
-                # Group data by DATE and calculate the sum of Sales and Cost
-                time_series_data = filtered_data.groupby("DATE")[["Sales total", "Cost total"]].sum().reset_index()
+            # Show all categories by default
+            category_values = profit_data[profit_category].unique().tolist()
+            selected_profit_categories = st.multiselect(
+                f"Filter by {profit_category} (Optional)",
+                options=category_values,
+                default=category_values  # Default to all values
+            )
 
-                st.write(time_series_data)
+            # Filter data if specific category values are selected
+            if selected_profit_categories:
+                profit_data = profit_data[profit_data[profit_category].isin(selected_profit_categories)]
+                st.write(profit_data)
+                with st.expander("Profit Percentage Calculation"):
+             
 
-                # Create a line chart for overall trend
-                sales_cost_chart = px.line(
-                    time_series_data,
-                    x="DATE",
-                    y=["Sales total", "Cost total"],
-                    labels={"value": "Amount (USD)", "variable": "Metric"},
-                    title="Sales vs. Cost Over Time",
+                    # Explanation Section
+                    st.markdown("""
+                    - **Part**: The profit for a specific combination of `profit_category` (e.g., "Destination") and the selected aggregation level (Daily or Monthly).
+                    - **Whole**: The total profit for the same `profit_category` over the entire year.
+                    """)
+
+                    # Formula Display Section
+                    st.subheader("Formula")
+                    st.latex(r'''
+                    Profit\ \% = \left( \frac{\text{Profit (for a specific category and time period)}}{\text{Total Profit (for the same category across the year)}} \right) \times 100
+                    ''')
+
+
+
+            # Create the selected chart type
+            if chart_type == "Bar Chart":
+                profit_chart = px.bar(
+                    profit_data,
+                    x=x_axis,
+                    y="Profit",
+                    color=profit_category,
+                    title=title,
+                    labels={x_axis: "Date/Month", "Profit": "Profit (USD)", profit_category: profit_category},
+                    barmode="group"  # Grouped bar chart
                 )
             else:
-                # Group data by DATE and selected category
-                time_series_data = filtered_data.groupby(["DATE", trend_category])[["Sales total", "Cost total"]].sum().reset_index()
-
-                # Show all categories by default
-                category_values = time_series_data[trend_category].unique().tolist()
-                selected_category_values = st.multiselect(
-                    f"Filter by {trend_category} (Optional)",
-                    options=category_values,
-                    default=category_values  # Default to all values
-                )
-
-                # Filter data if specific category values are selected
-                if selected_category_values:
-                    time_series_data = time_series_data[time_series_data[trend_category].isin(selected_category_values)]
-
-                # Transform data for better distinction between Sales and Cost
-                melted_data = time_series_data.melt(
-                    id_vars=["DATE", trend_category], 
-                    value_vars=["Sales total", "Cost total"], 
-                    var_name="Metric", 
-                    value_name="Amount"
-                )
-
-                # Create a combined column for unique coloring
-                melted_data["Category_Metric"] = melted_data[trend_category] + " - " + melted_data["Metric"]
-
-                # Create a line chart with distinct colors for each Category + Metric combination
-                sales_cost_chart = px.line(
-                    melted_data,
-                    x="DATE",
-                    y="Amount",
-                    color="Category_Metric",  # Unique color for each category + metric
-                    labels={"Category_Metric": "Category and Metric", "Amount": "Amount (USD)"},
-                    title=f"Sales vs. Cost Over Time by {trend_category}" if len(selected_category_values) > 1 
-                        else f"Sales vs. Cost Over Time for Selected {trend_category}",
+                profit_chart = px.scatter(
+                    profit_data,
+                    x=x_axis,
+                    y="Profit",
+                    color=profit_category,
+                    size="Profit %",
+                    title=title,
+                    labels={x_axis: "Date/Month", "Profit": "Profit (USD)", profit_category: profit_category},
+                    hover_data=["Profit %"],  # Show percentage in hover info
                 )
 
             # Display the chart
-            st.plotly_chart(sales_cost_chart, use_container_width=True)
+            st.plotly_chart(profit_chart, use_container_width=True)
         else:
             st.warning("No data available to generate the chart. Please adjust your filters.")
+
 
         # Client Analysis Section
         st.header("Client Analysis")
@@ -678,6 +858,108 @@ if uploaded_file:
 
         # Display the chart
         st.plotly_chart(top_categories_chart, use_container_width=True)
+
+
+
+            # Dynamic Breakdown Analysis Section
+        st.header("Three Dimensions Analysis")
+
+        # User Input for Metric and Aggregation Basis
+        col1, col2, col3 = st.columns([1, 1, 1])
+
+        with col1:
+            numeric_metric = st.selectbox(
+                "Select Numeric Metric to Analyze",
+                options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit"],
+                index=4,  # Default to "Profit"
+                key="dynamic_breakdown_numeric_metric"
+            )
+
+        with col2:
+            aggregation_basis = st.selectbox(
+                "Aggregate By",
+                options=["Destination", "Client code", "Client level", "Sales", 
+                        "Category1", "Category2", "Type", "Loading warehouse", "Description in E"],
+                index=0,  # Default to "Destination"
+                key="dynamic_breakdown_aggregation_basis"
+            )
+
+        with col3:
+            secondary_dimension = st.selectbox(
+                "Secondary Breakdown By",
+                options=["Destination", "Client code", "Client level", "Sales", 
+                        "Category1", "Category2", "Type", "Loading warehouse", "Description in E"],
+                index=4,  # Default to "Category1"
+                key="dynamic_breakdown_secondary_dimension"
+            )
+
+        # Radio Selector for Display Option
+        display_option = st.radio(
+            "Choose Display Option",
+            options=["Absolute Sum", "Percentage Share"],
+            index=0  # Default to "Absolute Sum"
+        )
+
+        st.write(filtered_data)
+
+
+        # Generate the Chart Based on User Selections
+        if not filtered_data.empty:  # Ensure there is data to display
+            # Group data by selected aggregation_basis and secondary_dimension
+            aggregated_data = (
+                filtered_data.groupby([aggregation_basis, secondary_dimension])[numeric_metric]
+                .sum()
+                .reset_index()
+            )
+
+
+            st.write(aggregated_data)
+
+            # Handle percentage share calculation if selected
+            if display_option == "Percentage Share":
+                # Calculate percentage share within each aggregation_basis group
+                aggregated_data["Percentage"] = (
+                    aggregated_data.groupby(aggregation_basis)[numeric_metric]
+                    .transform(lambda x: x / x.sum() * 100)
+                )
+                y_axis = "Percentage"  # Use percentage column for chart
+                y_label = "Percentage Share (%)"
+                chart_title = f"{numeric_metric} Percentage Share by {aggregation_basis} and {secondary_dimension}"
+                bar_mode = "relative"  # Relative stacking for percentage
+            else:
+                y_axis = numeric_metric  # Use the original numeric metric
+                y_label = f"{numeric_metric} (Absolute)"
+                chart_title = f"{numeric_metric} Breakdown by {aggregation_basis} and {secondary_dimension}"
+                bar_mode = "stack"  # Absolute stacking
+
+            # Sort and categorize aggregation_basis for consistent x-axis ordering
+            aggregated_data[aggregation_basis] = pd.Categorical(
+                aggregated_data[aggregation_basis],
+                categories=sorted(aggregated_data[aggregation_basis].unique()),
+                ordered=True
+            )
+
+            # Create a bar chart (stacked for absolute sum or 100% stacked for percentage)
+            bar_chart = px.bar(
+                aggregated_data,
+                x=aggregation_basis,
+                y=y_axis,
+                color=secondary_dimension,  # Add color to differentiate secondary breakdown
+                title=chart_title,
+                labels={
+                    aggregation_basis: aggregation_basis,
+                    y_axis: y_label,
+                    secondary_dimension: "Secondary Breakdown",
+                },
+                barmode=bar_mode,  # Stacked bar chart (absolute or relative)
+            )
+
+            # Display the chart
+            st.plotly_chart(bar_chart, use_container_width=True)
+
+        else:
+            st.warning("No data available to generate the chart. Please adjust your filters.")
+
 
 
 
@@ -1192,3 +1474,5 @@ if uploaded_file:
     
     else:
         st.warning("No File Uploaded.")
+
+
