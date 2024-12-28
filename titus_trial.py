@@ -257,7 +257,7 @@ if uploaded_file:
 
         
         # Key Metrics Section
-        st.header("Key Metrics")
+        #st.header("Key Metrics")
 
         # Ensure DATE is in datetime format
         filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')
@@ -272,8 +272,248 @@ if uploaded_file:
         ).astype(str)
 
 
+        # Ensure DATE is in datetime format
+        filtered_data['Profit/Sales'] = filtered_data['Profit']/filtered_data['Sales total']
+
+        # Ensure DATE is in datetime format
+        filtered_data['Profit/Weight'] = filtered_data['Profit']/filtered_data['WEIGHT']
+
+        # Ensure DATE is in datetime format
+        filtered_data['Profit/CBM'] = filtered_data['Profit']/filtered_data['CBM']
+
 
         #st.write(filtered_data)
+
+
+        st.header("Profit Analysis with Key Metrics")
+
+        # Step 1: Time Period Selection
+        st.subheader("Select Time Period")
+        time_period = st.selectbox(
+            "Choose the time period to analyze:",
+            options=["All Data", "Last 7 Days", "Last 30 Days", "Month to Date", "Year to Date", "Custom Date Range"],
+            index=0  # Default to "All Data"
+        )
+
+        # Get today's date
+        today = pd.Timestamp.today()
+
+        # Filter data based on the selected time period
+        if time_period != "All Data":
+            if time_period == "Last 7 Days":
+                start_date = today - pd.Timedelta(days=7)
+                filtered_data = filtered_data[filtered_data['DATE'] >= start_date]
+            elif time_period == "Last 30 Days":
+                start_date = today - pd.Timedelta(days=30)
+                filtered_data = filtered_data[filtered_data['DATE'] >= start_date]
+            elif time_period == "Month to Date":
+                start_date = today.replace(day=1)  # First day of the current month
+                filtered_data = filtered_data[filtered_data['DATE'] >= start_date]
+            elif time_period == "Year to Date":
+                start_date = today.replace(month=1, day=1)  # First day of the current year
+                filtered_data = filtered_data[filtered_data['DATE'] >= start_date]
+            elif time_period == "Custom Date Range":
+                # Custom date range picker
+                custom_date_range = st.date_input(
+                    "Select custom date range:",
+                    value=[filtered_data['DATE'].min(), filtered_data['DATE'].max()]
+                )
+                if len(custom_date_range) == 2:
+                    start_date, end_date = custom_date_range
+                    filtered_data = filtered_data[
+                        (filtered_data['DATE'] >= pd.to_datetime(start_date)) &
+                        (filtered_data['DATE'] <= pd.to_datetime(end_date))
+                    ]
+
+        # Step 2: Display Key Metrics
+
+        # Function to add totals row
+        def add_totals_row(grouped_data, numeric_columns, average_columns):
+            # Calculate totals for numeric columns
+            totals = grouped_data[numeric_columns].sum()
+
+            # Calculate averages for average columns
+            averages = grouped_data[average_columns].mean()
+
+            # Create a dictionary with all totals and averages
+            totals_row = {**totals, **averages, 'Order Count': grouped_data['Order Count'].sum()}
+
+            # Add a label for the index
+            totals_row[grouped_data.index.name or 'Index'] = 'Total'
+
+            # Convert totals_row into a DataFrame
+            totals_row_df = pd.DataFrame([totals_row], index=["Total"])
+
+            # Use pd.concat to append the totals row
+            return pd.concat([grouped_data, totals_row_df], axis=0)
+
+        # Step 2: Display Key Metrics
+        #st.header("Profit Analysis with Key Metrics")
+
+        if not filtered_data.empty:
+            # Handle invalid values for averages
+            filtered_data['Profit/Sales'].replace([np.inf, -np.inf], np.nan, inplace=True)
+            filtered_data['Profit/Weight'].replace([np.inf, -np.inf], np.nan, inplace=True)
+            filtered_data['Profit/CBM'].replace([np.inf, -np.inf], np.nan, inplace=True)
+
+            valid_data = filtered_data.dropna(subset=['Profit/Sales', 'Profit/Weight', 'Profit/CBM'])
+
+            # Calculate Key Metrics
+            orders_count = len(filtered_data)
+            unique_shipments = filtered_data['Shipment NO.'].nunique()
+            unique_customers = filtered_data['Client code'].nunique()
+            total_sales = filtered_data['Sales total'].sum()
+            total_weight = filtered_data['WEIGHT'].sum()
+            total_profit = filtered_data['Profit'].sum()
+            total_cbm = filtered_data['CBM'].sum()
+
+            # Calculate averages only from valid data
+            avg_profit_sales = valid_data['Profit/Sales'].mean()
+            avg_profit_weight = valid_data['Profit/Weight'].mean()
+            avg_profit_cbm = valid_data['Profit/CBM'].mean()
+
+            # Display metrics
+            col1, col2, col3 = st.columns(3)
+            col1.metric(label="💰 Average Profit/Sales", value=f"{avg_profit_sales * 100:,.1f}")
+            col2.metric(label="🚚 Average Profit/Weight", value=f"{avg_profit_weight:,.1f}")
+            col3.metric(label="📐 Average Profit/CBM", value=f"{avg_profit_cbm:,.1f}")
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric(label="📦 Orders", value=f"{orders_count}")
+            col2.metric(label="🚚 Unique Shipments", value=f"{unique_shipments}")
+            col3.metric(label="👥 Unique Customers", value=f"{unique_customers}")
+
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric(label="💰 Total Sales", value=f"${total_sales:,.1f}")
+            col2.metric(label="⚖️ Total Weight", value=f"{total_weight:,.1f} kg")
+            col3.metric(label="💹 Total Profit", value=f"${total_profit:,.1f}")
+            col4.metric(label="📐 Total CBM", value=f"{total_cbm:,.1f} m³")
+
+            # Step 3: Grouped Tables
+            st.subheader("Grouped Metrics")
+
+            numeric_cols = ['Total Sales', 'Total Profit', 'Total Weight', 'Total CBM']
+            avg_cols = ['Avg Profit/Sales', 'Avg Profit/Weight', 'Avg Profit/CBM']
+
+            # Group by Client Level
+            st.write("**Grouped by Client Level**")
+            client_level_metrics = filtered_data.groupby("Client level").agg({
+                'Sales total': 'sum',
+                'Profit': 'sum',
+                'WEIGHT': 'sum',
+                'CBM': 'sum',
+                'Shipment NO.': 'nunique',
+                'Client code': 'nunique',
+                'Profit/Sales': 'mean',
+                'Profit/Weight': 'mean',
+                'Profit/CBM': 'mean',
+            }).rename(columns={
+                'Sales total': 'Total Sales',
+                'Profit': 'Total Profit',
+                'WEIGHT': 'Total Weight',
+                'CBM': 'Total CBM',
+                'Shipment NO.': 'Unique Shipments',
+                'Client code': 'Unique Customers',
+                'Profit/Sales': 'Avg Profit/Sales',
+                'Profit/Weight': 'Avg Profit/Weight',
+                'Profit/CBM': 'Avg Profit/CBM'
+            })
+            client_level_metrics['Order Count'] = filtered_data.groupby("Client level").size()
+            client_level_metrics = add_totals_row(client_level_metrics, numeric_cols, avg_cols)
+            st.dataframe(client_level_metrics)
+
+            # Group by Destination
+            st.write("**Grouped by Destination**")
+            destination_metrics = filtered_data.groupby("Destination").agg({
+                'Sales total': 'sum',
+                'Profit': 'sum',
+                'WEIGHT': 'sum',
+                'CBM': 'sum',
+                'Shipment NO.': 'nunique',
+                'Client code': 'nunique',
+                'Profit/Sales': 'mean',
+                'Profit/Weight': 'mean',
+                'Profit/CBM': 'mean',
+            }).rename(columns={
+                'Sales total': 'Total Sales',
+                'Profit': 'Total Profit',
+                'WEIGHT': 'Total Weight',
+                'CBM': 'Total CBM',
+                'Shipment NO.': 'Unique Shipments',
+                'Client code': 'Unique Customers',
+                'Profit/Sales': 'Avg Profit/Sales',
+                'Profit/Weight': 'Avg Profit/Weight',
+                'Profit/CBM': 'Avg Profit/CBM'
+            })
+            destination_metrics['Order Count'] = filtered_data.groupby("Destination").size()
+            destination_metrics = add_totals_row(destination_metrics, numeric_cols, avg_cols)
+            st.dataframe(destination_metrics)
+
+            # Group by Type
+            st.write("**Grouped by Type**")
+            type_metrics = filtered_data.groupby("Type").agg({
+                'Sales total': 'sum',
+                'Profit': 'sum',
+                'WEIGHT': 'sum',
+                'CBM': 'sum',
+                'Shipment NO.': 'nunique',
+                'Client code': 'nunique',
+                'Profit/Sales': 'mean',
+                'Profit/Weight': 'mean',
+                'Profit/CBM': 'mean',
+            }).rename(columns={
+                'Sales total': 'Total Sales',
+                'Profit': 'Total Profit',
+                'WEIGHT': 'Total Weight',
+                'CBM': 'Total CBM',
+                'Shipment NO.': 'Unique Shipments',
+                'Client code': 'Unique Customers',
+                'Profit/Sales': 'Avg Profit/Sales',
+                'Profit/Weight': 'Avg Profit/Weight',
+                'Profit/CBM': 'Avg Profit/CBM'
+            })
+            type_metrics['Order Count'] = filtered_data.groupby("Type").size()
+            type_metrics = add_totals_row(type_metrics, numeric_cols, avg_cols)
+            st.dataframe(type_metrics)
+
+            # Group by User-Selected Column
+            group_column = st.selectbox(
+                "Choose a column to group by:",
+                options=["Category1", "Category2", "Description in E", "Description in C"],
+                index=0
+            )
+            st.write(f"**Grouped by {group_column}**")
+            custom_group_metrics = filtered_data.groupby(group_column).agg({
+                'Sales total': 'sum',
+                'Profit': 'sum',
+                'WEIGHT': 'sum',
+                'CBM': 'sum',
+                'Shipment NO.': 'nunique',
+                'Client code': 'nunique',
+                'Profit/Sales': 'mean',
+                'Profit/Weight': 'mean',
+                'Profit/CBM': 'mean',
+            }).rename(columns={
+                'Sales total': 'Total Sales',
+                'Profit': 'Total Profit',
+                'WEIGHT': 'Total Weight',
+                'CBM': 'Total CBM',
+                'Shipment NO.': 'Unique Shipments',
+                'Client code': 'Unique Customers',
+                'Profit/Sales': 'Avg Profit/Sales',
+                'Profit/Weight': 'Avg Profit/Weight',
+                'Profit/CBM': 'Avg Profit/CBM'
+            })
+            custom_group_metrics['Order Count'] = filtered_data.groupby(group_column).size()
+            custom_group_metrics = add_totals_row(custom_group_metrics, numeric_cols, avg_cols)
+            st.dataframe(custom_group_metrics)
+
+        else:
+            st.warning("No data available for the selected time period.")
+
+
+        # Step 3: Monthly Aggregation (Optional)
+        st.subheader("Monthly Aggregation")
 
         # Dropdown for dynamic aggregation
         aggregation_year = st.selectbox(
@@ -285,83 +525,175 @@ if uploaded_file:
         # Filter data for the selected year
         filtered_data_year = filtered_data[filtered_data['Year'] == aggregation_year]
 
-        # Aggregate metrics dynamically by month
-        # Aggregate metrics dynamically by month
-        monthly_aggregated = (
-            filtered_data_year.groupby(filtered_data_year['DATE'].dt.month)
-            .agg({
-                'Sales total': 'sum',
-                'Profit': 'sum',
-                'Cost total': 'sum',
-                'WEIGHT': 'sum',
-                'CBM': 'sum',
-                'Shipment NO.': 'count',
-                'Client code': pd.Series.nunique  # Unique count of clients
+        if not filtered_data_year.empty:
+            # Aggregate metrics dynamically by month
+            monthly_aggregated = (
+                filtered_data_year.groupby(filtered_data_year['DATE'].dt.month)
+                .agg({
+                    'Sales total': 'sum',
+                    'Profit': 'sum',
+                    'Cost total': 'sum',
+                    'WEIGHT': 'sum',
+                    'CBM': 'sum',
+                    'Shipment NO.': 'count',
+                    'Client code': pd.Series.nunique,  # Unique count of clients
+                    'DATE': 'count',  # Count of orders
+                    'Profit/Sales': 'mean',
+                    'Profit/Weight': 'mean',
+                    'Profit/CBM': 'mean'
+                })
+                .rename(columns={
+                    'Sales total': 'Total Sales',
+                    'Profit': 'Total Profit',
+                    'Cost total': 'Total Cost',
+                    'WEIGHT': 'Total Weight',
+                    'CBM': 'Total Volume',
+                    'Shipment NO.': 'Total Shipments',
+                    'Client code': 'Total Clients',
+                    'DATE': 'Total Orders',
+                    'Profit/Sales': 'Avg Profit/Sales',
+                    'Profit/Weight': 'Avg Profit/Weight',
+                    'Profit/CBM': 'Avg Profit/CBM'
+                })
+                .reset_index()
+            )
+
+            # Calculate yearly totals for each metric
+            yearly_totals = monthly_aggregated[['Total Sales', 'Total Profit', 'Total Cost', 
+                                                'Total Weight', 'Total Volume', 'Total Shipments', 'Total Orders']].sum()
+
+            # Add percentage share columns for each metric
+            for column in ['Total Sales', 'Total Profit', 'Total Cost', 'Total Weight', 'Total Volume', 'Total Shipments']:
+                monthly_aggregated[f"{column} %"] = (monthly_aggregated[column] / yearly_totals[column]) * 100
+
+            # Map month numbers to names
+            month_mapping = {
+                1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+                7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
+            }
+            monthly_aggregated['Month Name'] = monthly_aggregated['DATE'].map(month_mapping)
+
+            # Add total row
+            totals_row = {col: monthly_aggregated[col].sum() for col in ['Total Sales', 'Total Profit', 'Total Cost', 'Total Weight', 'Total Volume', 'Total Shipments', 'Total Orders']}
+            totals_row.update({
+                'Avg Profit/Sales': monthly_aggregated['Avg Profit/Sales'].mean(),
+                'Avg Profit/Weight': monthly_aggregated['Avg Profit/Weight'].mean(),
+                'Avg Profit/CBM': monthly_aggregated['Avg Profit/CBM'].mean(),
+                'Month Name': "Total"
             })
-            .rename(columns={
-                'Sales total': 'Total Sales',
-                'Profit': 'Total Profit',
-                'Cost total': 'Total Cost',
-                'WEIGHT': 'Total Weight',
-                'CBM': 'Total Volume',
-                'Shipment NO.': 'Total Shipments',
-                'Client code': 'Total Clients'
-            })
-            .reset_index()
-        )
+            for col in ['Total Sales', 'Total Profit', 'Total Cost', 'Total Weight', 'Total Volume', 'Total Shipments']:
+                totals_row[f"{col} %"] = 100  # Percentages sum to 100
+            monthly_aggregated = pd.concat([monthly_aggregated, pd.DataFrame([totals_row])], ignore_index=True)
 
-        # Calculate yearly totals for each metric
-        yearly_totals = monthly_aggregated[['Total Sales', 'Total Profit', 'Total Cost', 
-                                            'Total Weight', 'Total Volume', 'Total Shipments']].sum()
+            # Reorder columns to place percentages next to their metrics
+            cols_order = ['Month Name', 'Total Sales', 'Total Sales %', 'Total Profit', 'Total Profit %', 
+                        'Total Cost', 'Total Cost %', 'Total Weight', 'Total Weight %', 
+                        'Total Volume', 'Total Volume %', 'Total Shipments', 'Total Shipments %', 
+                        'Total Orders', 'Avg Profit/Sales', 'Avg Profit/Weight', 'Avg Profit/CBM', 'Total Clients']
+            monthly_aggregated = monthly_aggregated[cols_order]
 
-        # Add percentage share columns for each metric
-        for column in ['Total Sales', 'Total Profit', 'Total Cost', 'Total Weight', 'Total Volume', 'Total Shipments']:
-            monthly_aggregated[f"{column} %"] = (monthly_aggregated[column] / yearly_totals[column]) * 100
-
-        # Map month numbers to names
-        month_mapping = {
-            1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
-            7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
-        }
-        monthly_aggregated['Month Name'] = monthly_aggregated['DATE'].map(month_mapping)
-
-        # Reorder columns to place percentages next to their metrics
-        cols_order = ['Month Name', 'Total Sales', 'Total Sales %', 'Total Profit', 'Total Profit %', 
-                    'Total Cost', 'Total Cost %', 'Total Weight', 'Total Weight %', 
-                    'Total Volume', 'Total Volume %', 'Total Shipments', 'Total Shipments %', 'Total Clients']
-        monthly_aggregated = monthly_aggregated[cols_order]
-
-        # Display Monthly Aggregated Metrics
-        st.subheader(f"Monthly Metrics for {aggregation_year}")
-        st.dataframe(monthly_aggregated, use_container_width=True)
+            # Display Monthly Aggregated Metrics
+            st.subheader(f"Monthly Metrics for {aggregation_year}")
+            st.dataframe(monthly_aggregated, use_container_width=True)
+        else:
+            st.warning("No data available for the selected year.")
 
 
-        # Calculate overall metrics for the selected year
-        total_sales = filtered_data_year['Sales total'].sum()
-        total_profit = filtered_data_year['Profit'].sum()
-        total_cost = filtered_data_year['Cost total'].sum()
-        total_weight = filtered_data_year['WEIGHT'].sum()
-        total_volume = filtered_data_year['CBM'].sum()
-        total_shipments = filtered_data_year['Shipment NO.'].count()
-        total_clients = filtered_data_year['Client code'].nunique()
 
-        # Display KPIs
-        col1, col2, col3 = st.columns(3)
-        col1.metric(label="📈 Total Sales", value=f"${total_sales:,.2f}")
-        col2.metric(label="💰 Total Profit", value=f"${total_profit:,.2f}")
-        col3.metric(label="📦 Total Shipments", value=total_shipments)
 
-        col4, col5, col6 = st.columns(3)
-        col4.metric(label="🏷️ Total Cost", value=f"${total_cost:,.2f}")
-        col5.metric(label="⚖️ Total Weight", value=f"{total_weight:,.2f} kg")
-        col6.metric(label="📐 Total Volume", value=f"{total_volume:,.2f} m³")
 
-        col7, col8 = st.columns(2)
-        col7.metric(label="👥 Total Clients", value=total_clients)
+
+
+        # #st.write(filtered_data)
+
+        # # Dropdown for dynamic aggregation
+        # aggregation_year = st.selectbox(
+        #     "Select Year for Aggregation",
+        #     options=sorted(filtered_data['Year'].dropna().unique()),  # Unique years sorted
+        #     index=0  # Default to the first year
+        # )
+
+        # # Filter data for the selected year
+        # filtered_data_year = filtered_data[filtered_data['Year'] == aggregation_year]
+
+        # # Aggregate metrics dynamically by month
+        # # Aggregate metrics dynamically by month
+        # monthly_aggregated = (
+        #     filtered_data_year.groupby(filtered_data_year['DATE'].dt.month)
+        #     .agg({
+        #         'Sales total': 'sum',
+        #         'Profit': 'sum',
+        #         'Cost total': 'sum',
+        #         'WEIGHT': 'sum',
+        #         'CBM': 'sum',
+        #         'Shipment NO.': 'count',
+        #         'Client code': pd.Series.nunique  # Unique count of clients
+        #     })
+        #     .rename(columns={
+        #         'Sales total': 'Total Sales',
+        #         'Profit': 'Total Profit',
+        #         'Cost total': 'Total Cost',
+        #         'WEIGHT': 'Total Weight',
+        #         'CBM': 'Total Volume',
+        #         'Shipment NO.': 'Total Shipments',
+        #         'Client code': 'Total Clients'
+        #     })
+        #     .reset_index()
+        # )
+
+        # # Calculate yearly totals for each metric
+        # yearly_totals = monthly_aggregated[['Total Sales', 'Total Profit', 'Total Cost', 
+        #                                     'Total Weight', 'Total Volume', 'Total Shipments']].sum()
+
+        # # Add percentage share columns for each metric
+        # for column in ['Total Sales', 'Total Profit', 'Total Cost', 'Total Weight', 'Total Volume', 'Total Shipments']:
+        #     monthly_aggregated[f"{column} %"] = (monthly_aggregated[column] / yearly_totals[column]) * 100
+
+        # # Map month numbers to names
+        # month_mapping = {
+        #     1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+        #     7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
+        # }
+        # monthly_aggregated['Month Name'] = monthly_aggregated['DATE'].map(month_mapping)
+
+        # # Reorder columns to place percentages next to their metrics
+        # cols_order = ['Month Name', 'Total Sales', 'Total Sales %', 'Total Profit', 'Total Profit %', 
+        #             'Total Cost', 'Total Cost %', 'Total Weight', 'Total Weight %', 
+        #             'Total Volume', 'Total Volume %', 'Total Shipments', 'Total Shipments %', 'Total Clients']
+        # monthly_aggregated = monthly_aggregated[cols_order]
+
+        # # Display Monthly Aggregated Metrics
+        # st.subheader(f"Monthly Metrics for {aggregation_year}")
+        # st.dataframe(monthly_aggregated, use_container_width=True)
+
+
+        # # Calculate overall metrics for the selected year
+        # total_sales = filtered_data_year['Sales total'].sum()
+        # total_profit = filtered_data_year['Profit'].sum()
+        # total_cost = filtered_data_year['Cost total'].sum()
+        # total_weight = filtered_data_year['WEIGHT'].sum()
+        # total_volume = filtered_data_year['CBM'].sum()
+        # total_shipments = filtered_data_year['Shipment NO.'].count()
+        # total_clients = filtered_data_year['Client code'].nunique()
+
+        # # Display KPIs
+        # col1, col2, col3 = st.columns(3)
+        # col1.metric(label="📈 Total Sales", value=f"${total_sales:,.2f}")
+        # col2.metric(label="💰 Total Profit", value=f"${total_profit:,.2f}")
+        # col3.metric(label="📦 Total Shipments", value=total_shipments)
+
+        # col4, col5, col6 = st.columns(3)
+        # col4.metric(label="🏷️ Total Cost", value=f"${total_cost:,.2f}")
+        # col5.metric(label="⚖️ Total Weight", value=f"{total_weight:,.2f} kg")
+        # col6.metric(label="📐 Total Volume", value=f"{total_volume:,.2f} m³")
+
+        # col7, col8 = st.columns(2)
+        # col7.metric(label="👥 Total Clients", value=total_clients)
 
 
         # Profit Analysis Section
-        st.header("Profit/Cost/Sales/Weight Analysis by Category")
+        st.subheader("Profit/Cost/Sales/Weight Analysis by Category")
+        st.write(f"**Selected Time Period:** From {start_date} to {end_date}.")
 
         # User Choices for Metric and Aggregation in the same row
         col1, col2 = st.columns(2)
