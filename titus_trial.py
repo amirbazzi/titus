@@ -298,6 +298,9 @@ if uploaded_file:
         # Get today's date
         today = pd.Timestamp.today()
 
+        start_date= "x"
+        end_date="y"
+
         # Filter data based on the selected time period
         if time_period != "All Data":
             if time_period == "Last 7 Days":
@@ -693,7 +696,7 @@ if uploaded_file:
 
         # Profit Analysis Section
         st.subheader("Profit/Cost/Sales/Weight Analysis by Category")
-        st.write(f"**Selected Time Period:** From {start_date} to {end_date}.")
+        #st.write(f"**Selected Time Period:** From {start_date} to {end_date}.")
 
         # User Choices for Metric and Aggregation in the same row
         col1, col2 = st.columns(2)
