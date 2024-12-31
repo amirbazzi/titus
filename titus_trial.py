@@ -123,7 +123,7 @@ if uploaded_file:
             mark = st.multiselect("Select Mark (Label)", options=data['Mark'].unique())
             category1 = st.multiselect("Select Main Category", options=data['Category1'].unique())
             category2 = st.multiselect("Select Subcategory", options=data['Category2'].unique())
-            description = st.multiselect("Select Description", options=data['Description in E'].unique())
+            description = st.multiselect("Select Description", options=data['Description in EN'].unique())
             goods_type = st.multiselect("Select Goods Type", options=data['goods tpye'].unique())
 
         # Transport Type Filter
@@ -203,7 +203,7 @@ if uploaded_file:
 
         # Description Filter
         if description:
-            filtered_data = filtered_data[filtered_data['Description in E'].isin(description)]
+            filtered_data = filtered_data[filtered_data['Description in EN'].isin(description)]
 
         # Goods Type Filter
         if goods_type:
@@ -247,6 +247,20 @@ if uploaded_file:
         # Extract new columns from DATE
         #filtered_data['Year'] = filtered_data['DATE'].dt.year
         #filtered_data['Month'] = filtered_data['DATE'].dt.month
+
+        #st.write("Data Type of 'Shipment NO.':", filtered_data['Shipment NO.'].dtype)
+
+
+
+        filtered_data['Shipment NO.'] = filtered_data['Shipment NO.'].fillna("Not Available").astype(str)
+
+        # Create a new column with the desired string format
+        filtered_data['Shipment Number'] = 's-' + filtered_data['Shipment NO.']
+
+        # Display the updated DataFrame to verify
+        #st.write(filtered_data[['Shipment NO.', 'Shipment Number']])
+
+        #st.write("Data Type of 'Shipment NO.':", filtered_data['Shipment NO.'].dtype)
         filtered_data['Month'] = filtered_data['DATE'].dt.month.fillna("Not Available").astype(object)
 
 
@@ -482,7 +496,7 @@ if uploaded_file:
             # Group by User-Selected Column
             group_column = st.selectbox(
                 "Choose a column to group by:",
-                options=["Category1", "Category2", "Description in E", "Description in C"],
+                options=["Category1", "Category2", "Description in EN", "Description in CN"],
                 index=0
             )
             st.write(f"**Grouped by {group_column}**")
@@ -538,7 +552,7 @@ if uploaded_file:
                     'Cost total': 'sum',
                     'WEIGHT': 'sum',
                     'CBM': 'sum',
-                    'Shipment NO.': 'count',
+                    'Shipment NO.': pd.Series.nunique,
                     'Client code': pd.Series.nunique,  # Unique count of clients
                     'DATE': 'count',  # Count of orders
                     'Profit/Sales': 'mean',
@@ -1176,36 +1190,74 @@ if uploaded_file:
         st.plotly_chart(profit_bar_chart, use_container_width=True)
 
 
-
         # Section Header
         st.header("Top 20 Categories by Numeric Columns")
 
+        # Exclude specific columns from categorical selection
+        exclude_columns = ['Month', 'Shipment NO.']
+
         # Dropdown to select the categorical column
         categorical_columns = filtered_data.select_dtypes(include=['object', 'category']).columns.tolist()
+        filtered_categorical_columns = [col for col in categorical_columns if col not in exclude_columns]
+
         selected_category_column = st.selectbox(
             "Select a Category Column",
-            options=categorical_columns,
+            options=filtered_categorical_columns,
             index=0  # Default to the first category
         )
 
-        # Dropdown to select the numeric column
+        # Extend numeric columns with additional options
         numeric_columns = filtered_data.select_dtypes(include=['number']).columns.tolist()
+        additional_numeric_options = ['# of Orders', '# of Shipments', '# of Customers']
+        numeric_columns.extend(additional_numeric_options)
+
+        # Dropdown to select the numeric column
         selected_numeric_column = st.selectbox(
             "Select a Numeric Column",
             options=numeric_columns,
             index=0  # Default to the first numeric column
         )
 
+        # Calculate the grouped data based on user selection
+        if selected_numeric_column == '# of Orders':
+            top_categories = (
+                filtered_data.groupby(selected_category_column)
+                .size()
+                .reset_index(name='# of Orders')
+                .sort_values(by='# of Orders', ascending=False)
+                .head(20)
+            )
+        elif selected_numeric_column == '# of Shipments':
+            top_categories = (
+                filtered_data.groupby(selected_category_column)['Shipment NO.']
+                .nunique()
+                .reset_index(name='# of Shipments')
+                .sort_values(by='# of Shipments', ascending=False)
+                .head(20)
+            )
+        elif selected_numeric_column == '# of Customers':
+            top_categories = (
+                filtered_data.groupby(selected_category_column)['Client code']
+                .nunique()
+                .reset_index(name='# of Customers')
+                .sort_values(by='# of Customers', ascending=False)
+                .head(20)
+            )
+        else:
+            top_categories = (
+                filtered_data.groupby(selected_category_column)[selected_numeric_column]
+                .sum()
+                .reset_index()
+                .sort_values(by=selected_numeric_column, ascending=False)
+                .head(20)
+            )
 
-        # Group data by the selected category and sum the selected numeric column
-        top_categories = (
-            filtered_data.groupby(selected_category_column)[selected_numeric_column]
-            .sum()
-            .reset_index()
-            .sort_values(by=selected_numeric_column, ascending=False)
-            .head(20)  # Keep the top 20 categories
-        )
+        # Create a rank column for gradient coloring and sort explicitly for plotting
+        top_categories = top_categories.sort_values(by=selected_numeric_column, ascending=False).reset_index(drop=True)
+        top_categories["Rank"] = top_categories[selected_numeric_column].rank(method="first", ascending=False)
 
+        # Display the grouped data for verification
+        st.write(top_categories)
 
         # Create a bar chart for the top categories
         top_categories_chart = px.bar(
@@ -1218,20 +1270,36 @@ if uploaded_file:
             text=selected_numeric_column  # Display values on bars
         )
 
-        # Update layout for better appearance
+        # Update the color scale for gradient effect
+        top_categories_chart.update_traces(
+            marker=dict(
+                color=top_categories["Rank"],  # Use rank for gradient
+                colorscale="Blues_r",  # Reverse gradient to make darker colors for higher values
+                showscale=False  # Hide the color bar
+            ),
+            texttemplate='%{text:.2f}',  # Format labels on bars
+            textposition="outside"  # Position labels outside the bars
+        )
+
+        # Explicitly set the order of the y-axis categories based on the DataFrame
         top_categories_chart.update_layout(
-            yaxis=dict(autorange="reversed"),  # Reverse the order for descending values
+            yaxis=dict(
+                categoryorder="array",  # Use the order from the DataFrame
+                categoryarray=top_categories[selected_category_column],  # Explicit order
+                autorange="reversed"  # Reverse for descending order
+            ),
             xaxis_title="Value",
             yaxis_title="Category",
+            margin=dict(l=100, r=20, t=40, b=40)  # Adjust margins for better readability
         )
 
         # Display the chart
         st.plotly_chart(top_categories_chart, use_container_width=True)
 
-
-
-            # Dynamic Breakdown Analysis Section
+        
+        # Dynamic Breakdown Analysis Section
         st.header("Three Dimensions Analysis")
+        st.write(filtered_data.columns)
 
         # User Input for Metric and Aggregation Basis
         col1, col2, col3 = st.columns([1, 1, 1])
@@ -1239,7 +1307,8 @@ if uploaded_file:
         with col1:
             numeric_metric = st.selectbox(
                 "Select Numeric Metric to Analyze",
-                options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit"],
+                options=["Sales total", "Cost total", "CBM", "WEIGHT", "Profit", "Profit",
+                         "Profit/Sales", "Profit/Weight", "Profit/CBM"],
                 index=4,  # Default to "Profit"
                 key="dynamic_breakdown_numeric_metric"
             )
@@ -1248,7 +1317,8 @@ if uploaded_file:
             aggregation_basis = st.selectbox(
                 "Aggregate By",
                 options=["Destination", "Client code", "Client level", "Sales", 
-                        "Category1", "Category2", "Type", "Loading warehouse", "Description in E"],
+                        "Category1", "Category2", "Type", "Loading warehouse", "Description in EN",
+                        "Shipment Number", "Month Name"],
                 index=0,  # Default to "Destination"
                 key="dynamic_breakdown_aggregation_basis"
             )
@@ -1257,7 +1327,7 @@ if uploaded_file:
             secondary_dimension = st.selectbox(
                 "Secondary Breakdown By",
                 options=["Destination", "Client code", "Client level", "Sales", 
-                        "Category1", "Category2", "Type", "Loading warehouse", "Description in E"],
+                        "Category1", "Category2", "Type", "Loading warehouse", "Description in EN"],
                 index=4,  # Default to "Category1"
                 key="dynamic_breakdown_secondary_dimension"
             )
