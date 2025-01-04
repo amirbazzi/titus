@@ -1303,12 +1303,19 @@ if uploaded_file:
         # Dynamically identify categorical columns in the dataset
         categorical_columns = client_data.select_dtypes(include=['object', 'category']).columns.tolist()
 
-        # Dropdown for selecting the grouping column
+        # Specify the columns to exclude
+        exclude_columns = ['Order No.', 'Month', 'Shipment NO.']
+
+        # Filter out the excluded columns
+        filtered_categorical_columns = [col for col in categorical_columns if col not in exclude_columns]
+
+        # Use the filtered list
         selected_group_column = st.selectbox(
-            "Select a Column to Group By",
-            options=categorical_columns,
-            index=0  # Default to the first categorical column
+            "Select a Category Column",
+            options=filtered_categorical_columns,
+            index=0  # Default to the first category
         )
+
 
         # Group data by the selected column and calculate total profit
         category_profit = client_data.groupby(selected_group_column)["Profit"].sum().reset_index()
