@@ -266,6 +266,15 @@ if uploaded_file:
 
         filtered_data['Year'] = filtered_data['DATE'].dt.year.fillna("Not Available").astype(object)
 
+        # Ensure the DATE column is in datetime format
+        filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')
+
+        # Remove the time part by converting to date only
+        filtered_data['DATE'] = filtered_data['DATE'].dt.date
+
+
+        st.write(filtered_data)
+
         #filtered_data['Week'] = filtered_data['DATE'].dt.isocalendar().week  # ISO week
 
 
@@ -274,7 +283,7 @@ if uploaded_file:
         #st.header("Key Metrics")
 
         # Ensure DATE is in datetime format
-        filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')
+        #filtered_data['DATE'] = pd.to_datetime(filtered_data['DATE'], errors='coerce')
 
         # Extract Month and Year with "Not Available" for missing values
         filtered_data['Month'] = filtered_data['DATE'].apply(
