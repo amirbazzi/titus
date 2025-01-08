@@ -2037,9 +2037,12 @@ if uploaded_file:
                 metric = st.selectbox("Select Metric", options=["Profit", "Sales total"], index=0)
             with col2:
                 aggregation = st.selectbox("Aggregate By", options=categorical_columns, index=0)
+
+            
             if metric and aggregation:
                 agg_data = data.groupby(aggregation)[metric].sum().reset_index()
                 fig = px.bar(agg_data, x=aggregation, y=metric, color=aggregation, title=f"{metric} by {aggregation}")
+                st.write(agg_data)
                 st.plotly_chart(fig)
 
             # Section 2: Cost Efficiency
@@ -2053,6 +2056,7 @@ if uploaded_file:
                 barmode="group",
                 labels={"value": "Amount (USD)", "variable": "Metric"},
             )
+            st.write(cost_efficiency)
             st.plotly_chart(fig2)
 
             # Section 3: Volume and Weight Analysis
@@ -2092,6 +2096,7 @@ if uploaded_file:
                 title="Profit and Sales by Client Level",
                 labels={"value": "Amount (USD)", "variable": "Metric"},
             )
+            st.write(client_segmentation)
             st.plotly_chart(fig5)
 
             
